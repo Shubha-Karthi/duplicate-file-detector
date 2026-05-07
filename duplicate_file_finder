@@ -1,0 +1,89 @@
+import os
+import hashlib
+
+def get_file_hash(filepath):
+    hasher = hashlib.md5()
+    try:
+        with open(filepath, 'rb') as file:
+            while chunk := file.read(4096):
+                hasher.update(chunk)
+        return hasher.hexdigest()
+    except Exception as e:
+        print(f"Error reading {filepath}: {e}")
+        return None
+
+def group_by_size(folder):
+    size_map = {}
+
+    for root, _, files in os.walk(folder):
+        for file in files:
+            filepath = os.path.join(root, file)
+            try:
+                size = os.path.getsize(filepath)
+                size_map.setdefault(size, []).append(filepath)
+            except:
+                continue
+
+    return size_map
+
+def find_duplicates(folder):
+    size_map = group_by_size(folder)
+    hash_map = {}
+
+    for size, files in size_map.items():
+        if len(files) < 2:
+            continue  # skip unique size files
+
+        for filepath in files:
+            file_hash = get_file_hash(filepath)
+
+            if file_hash:
+                hash_map.setdefault(file_hash, []).append(filepath)
+
+    return hash_map
+
+def show_duplicates(hash_map):
+    duplicates_found = False
+
+    for file_list in hash_map.values():
+        if len(file_list) > 1:
+            duplicates_found = True
+            print("\nDuplicate files:")
+            for file in file_list:
+                print(file)
+
+    if not duplicates_found:
+        print("No duplicate files found.")
+
+def delete_duplicates(hash_map):
+    for file_list in hash_map.values():
+        if len(file_list) > 1:
+            # Keep first file, delete rest
+            for file in file_list[1:]:
+                try:
+                    os.remove(file)
+                    print(f"Deleted: {file}")
+                except Exception as e:
+                    print(f"Error deleting {file}: {e}")
+
+def main():
+    folder = input("Enter folder path: ")
+
+    if not os.path.exists(folder):
+        print("Invalid folder path!")
+        return
+
+    print("\nScanning for duplicates...")
+    hash_map = find_duplicates(folder)
+
+    show_duplicates(hash_map)
+
+    choice = input("\nDo you want to delete duplicates? (yes/no): ").lower()
+
+    if choice == "yes":
+        delete_duplicates(hash_map)
+        print("Duplicate files deleted (kept one copy).")
+
+
+if __name__ == "__main__":
+    main()
